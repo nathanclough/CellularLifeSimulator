@@ -31,7 +31,7 @@ def main(argv):
             ThreadCount = int(arg)
     print("Project :: R11568824")
     # Validate Arguments are given
-    if ThreadCount < 0:
+    if ThreadCount <= 0:
         print("Error ThreadCount -t must be > 0")
         sys.exit(2)
     elif InputPath == "":
