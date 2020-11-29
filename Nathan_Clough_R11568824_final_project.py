@@ -49,7 +49,8 @@ def main(argv):
     # Validate OutputFile path exists?
 
     # Begin Simulation
-    Simulation.Run(ThreadCount, InputPath, OutputPath)
+    s = Simulation.Simulation(ThreadCount, InputPath, OutputPath)
+    s.Begin()
 
 
 if (__name__ == "__main__"):
