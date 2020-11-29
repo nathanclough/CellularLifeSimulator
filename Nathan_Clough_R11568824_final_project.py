@@ -2,6 +2,7 @@ import sys
 import os
 import getopt
 import Simulation
+import multiprocessing
 
 
 def main(argv):
