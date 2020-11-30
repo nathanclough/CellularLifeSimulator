@@ -7,7 +7,7 @@ NextStep = []
 
 
 def Run(ThreadCount, InputPath, OutputPath):
-    CreateMatrix(InputPath)
+
     global MaxRow
     global MaxCol
     global CurrentStep
@@ -18,23 +18,40 @@ def Run(ThreadCount, InputPath, OutputPath):
     MaxCol = len(CurrentStep[0])-1  # sutract 1 for /n and one for indexstart 0
 
     # Create a matrix from the input file
-    # iterate through currentStep and write values to next step
+    CreateMatrix(InputPath)
+
+    # Initialize the partition value, process pool and a list for processes
     part = math.floor(len(CurrentStep)/ThreadCount)
     processes = []
     processPool = multiprocessing.Pool(processes=ThreadCount)
     for x in range(100):
+
         poolData = list()
         start = 0
         end = part
+
+        # Create matrix data for each thread consisting of a copy of the CurrentStep matrix,
+        # a start row and an end row
         for x in range(ThreadCount-1):
             matrixData = [CurrentStep, start, end]
+
+            # Store the matrixData in poolData list
             poolData.append(matrixData)
             start += part
             end += part
+
+        # For the last partition use MaxRow + 1 so that it can truncate in the case of
+        # an uneven partition
         matrixData = [CurrentStep, start, MaxRow+1]
         poolData.append(matrixData)
-        finalData = processPool.map(ProcessJob, poolData)
 
+        # Map each value in poolData to a SimulationJob
+        # .map performs a scatter gather: starts the processes and waits for the results of each
+        # storing them in finalData
+        finalData = processPool.map(SimulationJob, poolData)
+
+        # Iterate through final data and stitch together the CurrentStep matrix from the
+        # results of each job
         CurrentStep = []
         for result in finalData:
             for row in result:
@@ -43,6 +60,7 @@ def Run(ThreadCount, InputPath, OutputPath):
                     r.append(item)
                 CurrentStep.append(r)
 
+    # Print to the output file
     outputFile = open(OutputPath, 'w')
     for row in CurrentStep:
         for char in row:
@@ -50,7 +68,7 @@ def Run(ThreadCount, InputPath, OutputPath):
         print("", file=outputFile)
 
 
-def ProcessJob(poolData):
+def SimulationJob(poolData):
     matrix = poolData[0]
     start = int(poolData[1])
     end = int(poolData[2])
