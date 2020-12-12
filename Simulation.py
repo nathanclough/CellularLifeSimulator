@@ -1,5 +1,8 @@
 import multiprocessing
 import math
+import re
+import sys
+
 CurrentStep = []
 MaxRow = 0
 MaxCol = 0
@@ -13,59 +16,63 @@ def Run(ThreadCount, InputPath, OutputPath):
     global CurrentStep
     global NextStep
 
-    # Initialize the next step to the current
-    MaxRow = len(CurrentStep)-1
-    MaxCol = len(CurrentStep[0])-1  # sutract 1 for /n and one for indexstart 0
-
     # Create a matrix from the input file
-    CreateMatrix(InputPath)
+    if not CreateMatrix(InputPath):
+        print("Error file contains invalid values")
+        sys.exit(2)
+    # Else if file is clean run simulation
+    else:
+        # Initialize the next step to the current
+        MaxRow = len(CurrentStep)-1
+        # sutract 1 for /n and one for indexstart 0
+        MaxCol = len(CurrentStep[0])-1
 
-    # Initialize the partition value, process pool and a list for processes
-    part = math.floor(len(CurrentStep)/ThreadCount)
-    processes = []
-    processPool = multiprocessing.Pool(processes=ThreadCount)
-    for x in range(100):
+        # Initialize the partition value, process pool and a list for processes
+        part = math.floor(len(CurrentStep)/ThreadCount)
+        processes = []
+        processPool = multiprocessing.Pool(processes=ThreadCount)
+        for x in range(100):
 
-        poolData = list()
-        start = 0
-        end = part
+            poolData = list()
+            start = 0
+            end = part
 
-        # Create matrix data for each thread consisting of a copy of the CurrentStep matrix,
-        # a start row and an end row
-        for x in range(ThreadCount-1):
-            matrixData = [CurrentStep, start, end]
+            # Create matrix data for each thread consisting of a copy of the CurrentStep matrix,
+            # a start row and an end row
+            for x in range(ThreadCount-1):
+                matrixData = [CurrentStep, start, end]
 
-            # Store the matrixData in poolData list
+                # Store the matrixData in poolData list
+                poolData.append(matrixData)
+                start += part
+                end += part
+
+            # For the last partition use MaxRow + 1 so that it can truncate in the case of
+            # an uneven partition
+            matrixData = [CurrentStep, start, MaxRow+1]
             poolData.append(matrixData)
-            start += part
-            end += part
 
-        # For the last partition use MaxRow + 1 so that it can truncate in the case of
-        # an uneven partition
-        matrixData = [CurrentStep, start, MaxRow+1]
-        poolData.append(matrixData)
+            # Map each value in poolData to a SimulationJob
+            # .map performs a scatter gather: starts the processes and waits for the results of each
+            # storing them in finalData
+            finalData = processPool.map(SimulationJob, poolData)
 
-        # Map each value in poolData to a SimulationJob
-        # .map performs a scatter gather: starts the processes and waits for the results of each
-        # storing them in finalData
-        finalData = processPool.map(SimulationJob, poolData)
+            # Iterate through final data and stitch together the CurrentStep matrix from the
+            # results of each job
+            CurrentStep = []
+            for result in finalData:
+                for row in result:
+                    r = []
+                    for item in row:
+                        r.append(item)
+                    CurrentStep.append(r)
 
-        # Iterate through final data and stitch together the CurrentStep matrix from the
-        # results of each job
-        CurrentStep = []
-        for result in finalData:
-            for row in result:
-                r = []
-                for item in row:
-                    r.append(item)
-                CurrentStep.append(r)
-
-    # Print to the output file
-    outputFile = open(OutputPath, 'w')
-    for row in CurrentStep:
-        for char in row:
-            print(char, sep="", end="", file=outputFile)
-        print("", file=outputFile)
+        # Print to the output file
+        outputFile = open(OutputPath, 'w')
+        for row in CurrentStep:
+            for char in row:
+                print(char, sep="", end="", file=outputFile)
+            print("", file=outputFile)
 
 
 def SimulationJob(poolData):
@@ -135,6 +142,12 @@ def CreateMatrix(InputPath):
 
     temp = f.readlines()
     for row in temp:
-        # remove the new line character
         row = row.strip('\n')
-        CurrentStep.append([char for char in row])
+        r = []
+        for char in row:
+            if char == 'O' or char == '.' or char == '\n':
+                r.append(char)
+            else:
+                return False
+        CurrentStep.append(r)
+    return True
