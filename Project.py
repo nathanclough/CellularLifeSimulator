@@ -5,7 +5,6 @@ import Simulation
 import multiprocessing
 
 # Nathan Clough
-# R11568824
 
 # This program takes in an input file containing matrix, output file and a number of threads then runs a life
 # simulation outputing the results to output
